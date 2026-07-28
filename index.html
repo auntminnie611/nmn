@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pulse — Habit Tracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <div class="atmosphere" aria-hidden="true"></div>
+
+    <main class="app">
+      <header class="hero">
+        <p class="brand">Pulse</p>
+        <h1 class="headline">Build habits that stick.</h1>
+        <p class="lede">Track what matters, mark each day, watch your streaks grow.</p>
+        <p class="today" id="today-label"></p>
+      </header>
+
+      <section class="compose" aria-labelledby="add-heading">
+        <h2 id="add-heading" class="visually-hidden">Add a habit</h2>
+        <form id="habit-form" class="habit-form" autocomplete="off">
+          <label class="field">
+            <span class="field-label">New habit</span>
+            <input
+              id="habit-input"
+              name="habit"
+              type="text"
+              maxlength="60"
+              placeholder="e.g. Morning stretch"
+              required
+            />
+          </label>
+          <button type="submit" class="btn btn-primary">Add habit</button>
+        </form>
+      </section>
+
+      <section class="habits-section" aria-labelledby="habits-heading">
+        <div class="section-head">
+          <h2 id="habits-heading">Your habits</h2>
+          <p id="habit-count" class="section-meta">0 habits</p>
+        </div>
+        <ul id="habit-list" class="habit-list"></ul>
+        <p id="empty-state" class="empty-state" hidden>
+          No habits yet. Add one above to start your first streak.
+        </p>
+      </section>
+    </main>
+
+    <template id="habit-template">
+      <li class="habit-item">
+        <div class="habit-main">
+          <button type="button" class="check-btn" aria-pressed="false" title="Mark complete for today">
+            <span class="check-icon" aria-hidden="true"></span>
+            <span class="visually-hidden check-label">Mark complete</span>
+          </button>
+          <div class="habit-copy">
+            <h3 class="habit-name"></h3>
+            <div class="week" aria-label="Last 7 days"></div>
+          </div>
+        </div>
+        <div class="habit-aside">
+          <div class="streaks">
+            <div class="streak">
+              <span class="streak-value current-streak">0</span>
+              <span class="streak-label">Current</span>
+            </div>
+            <div class="streak">
+              <span class="streak-value best-streak">0</span>
+              <span class="streak-label">Best</span>
+            </div>
+          </div>
+          <button type="button" class="btn btn-ghost delete-btn" title="Delete habit">
+            Delete
+          </button>
+        </div>
+      </li>
+    </template>
+
+    <script src="js/app.js"></script>
+  </body>
+</html>
