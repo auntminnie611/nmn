@@ -1,236 +1,299 @@
 (() => {
-  const STORAGE_KEY = "pulse-habits-v1";
+  const STORAGE_KEY = "tally-adding-machine-v1";
+  const MAX_DIGITS = 14;
 
-  const form = document.getElementById("habit-form");
-  const input = document.getElementById("habit-input");
-  const list = document.getElementById("habit-list");
-  const emptyState = document.getElementById("empty-state");
-  const habitCount = document.getElementById("habit-count");
-  const todayLabel = document.getElementById("today-label");
-  const template = document.getElementById("habit-template");
+  const tapeList = document.getElementById("tape-list");
+  const tapeEmpty = document.getElementById("tape-empty");
+  const tapeScroll = document.getElementById("tape-scroll");
+  const totalValue = document.getElementById("total-value");
+  const entryValue = document.getElementById("entry-value");
+  const entryHint = document.getElementById("entry-hint");
+  const keypad = document.querySelector(".keypad");
+  const clearAllBtn = document.getElementById("btn-clear-all");
+  const lineTemplate = document.getElementById("tape-line-template");
 
-  /** @type {{ id: string, name: string, createdAt: string, completions: string[] }[]} */
-  let habits = loadHabits();
+  /** @type {{ id: string, value: number, op: "add" | "sub" }[]} */
+  let entries = [];
+  /** @type {string} */
+  let draft = "0";
+  let fresh = true;
 
-  todayLabel.textContent = formatLongDate(todayKey());
+  load();
   render();
 
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const name = input.value.trim();
-    if (!name) return;
-
-    habits.unshift({
-      id: crypto.randomUUID(),
-      name,
-      createdAt: new Date().toISOString(),
-      completions: [],
-    });
-
-    input.value = "";
-    persist();
-    render({ animateNewest: true });
-    input.focus();
-  });
-
-  list.addEventListener("click", (event) => {
+  keypad.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof Element)) return;
+    const key = target.closest(".key");
+    if (!key) return;
 
-    const item = target.closest(".habit-item");
-    if (!item) return;
+    flashKey(key);
 
-    const id = item.dataset.id;
-    if (!id) return;
-
-    if (target.closest(".check-btn")) {
-      toggleToday(id);
+    if (key.dataset.digit != null) {
+      inputDigit(key.dataset.digit);
       return;
     }
 
-    if (target.closest(".delete-btn")) {
-      deleteHabit(id);
+    switch (key.dataset.action) {
+      case "decimal":
+        inputDecimal();
+        break;
+      case "backspace":
+        backspace();
+        break;
+      case "clear-entry":
+        clearEntry();
+        break;
+      case "clear-all":
+        clearAll();
+        break;
+      case "add":
+        post("add");
+        break;
+      case "sub":
+        post("sub");
+        break;
+      default:
+        break;
     }
   });
 
-  function toggleToday(id) {
-    const habit = habits.find((entry) => entry.id === id);
-    if (!habit) return;
+  clearAllBtn.addEventListener("click", () => {
+    clearAll();
+  });
 
-    const today = todayKey();
-    const index = habit.completions.indexOf(today);
+  window.addEventListener("keydown", (event) => {
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
 
-    if (index >= 0) {
-      habit.completions.splice(index, 1);
-    } else {
-      habit.completions.push(today);
-      habit.completions.sort();
+    const { key } = event;
+
+    if (key >= "0" && key <= "9") {
+      event.preventDefault();
+      inputDigit(key);
+      flashAction(`[data-digit="${key}"]`);
+      return;
     }
 
-    persist();
-    render({ bumpId: id });
+    if (key === "." || key === ",") {
+      event.preventDefault();
+      inputDecimal();
+      flashAction('[data-action="decimal"]');
+      return;
+    }
+
+    if (key === "+" || key === "=" || key === "Enter") {
+      event.preventDefault();
+      post("add");
+      flashAction('[data-action="add"]');
+      return;
+    }
+
+    if (key === "-" || key === "_") {
+      event.preventDefault();
+      post("sub");
+      flashAction('[data-action="sub"]');
+      return;
+    }
+
+    if (key === "Backspace") {
+      event.preventDefault();
+      backspace();
+      flashAction('[data-action="backspace"]');
+      return;
+    }
+
+    if (key === "Escape") {
+      event.preventDefault();
+      clearEntry();
+      flashAction('[data-action="clear-entry"]');
+      return;
+    }
+
+    if (key === "Delete") {
+      event.preventDefault();
+      clearAll();
+      flashAction('[data-action="clear-all"]');
+    }
+  });
+
+  function inputDigit(digit) {
+    if (fresh || draft === "0") {
+      draft = digit;
+      fresh = false;
+    } else if (digitCount(draft) < MAX_DIGITS) {
+      draft += digit;
+    }
+    updateEntry();
   }
 
-  function deleteHabit(id) {
-    habits = habits.filter((habit) => habit.id !== id);
+  function inputDecimal() {
+    if (fresh) {
+      draft = "0.";
+      fresh = false;
+    } else if (!draft.includes(".")) {
+      draft += ".";
+    }
+    updateEntry();
+  }
+
+  function backspace() {
+    if (fresh) return;
+    if (draft.length <= 1) {
+      draft = "0";
+      fresh = true;
+    } else {
+      draft = draft.slice(0, -1);
+      if (draft === "-" || draft === "") {
+        draft = "0";
+        fresh = true;
+      }
+    }
+    updateEntry();
+  }
+
+  function clearEntry() {
+    draft = "0";
+    fresh = true;
+    entryHint.textContent = "Cleared";
+    updateEntry();
+  }
+
+  function clearAll() {
+    entries = [];
+    draft = "0";
+    fresh = true;
+    entryHint.textContent = "Tape cleared";
     persist();
-    render();
+    render({ bumpTotal: true });
+  }
+
+  /**
+   * @param {"add" | "sub"} op
+   */
+  function post(op) {
+    const value = Number(draft);
+    if (!Number.isFinite(value)) {
+      clearEntry();
+      return;
+    }
+
+    // Posting 0 with a fresh zero is a no-op unless user typed it.
+    if (fresh && value === 0 && draft === "0") {
+      entryHint.textContent = op === "add" ? "Enter a number" : "Enter a number";
+      return;
+    }
+
+    entries.push({
+      id: crypto.randomUUID(),
+      value: Math.abs(value),
+      op,
+    });
+
+    draft = "0";
+    fresh = true;
+    entryHint.textContent = op === "add" ? "Added" : "Subtracted";
+    persist();
+    render({ bumpTotal: true, animateNewest: true });
   }
 
   function render(options = {}) {
-    const { bumpId = null } = options;
-    list.replaceChildren();
+    const { bumpTotal = false, animateNewest = false } = options;
+    tapeList.replaceChildren();
 
-    habitCount.textContent = `${habits.length} habit${habits.length === 1 ? "" : "s"}`;
-    emptyState.hidden = habits.length > 0;
+    const empty = entries.length === 0;
+    tapeEmpty.hidden = !empty;
 
-    for (const habit of habits) {
-      const node = template.content.firstElementChild.cloneNode(true);
-      const doneToday = habit.completions.includes(todayKey());
-      const current = currentStreak(habit.completions);
-      const best = bestStreak(habit.completions);
+    for (const [index, entry] of entries.entries()) {
+      const node = lineTemplate.content.firstElementChild.cloneNode(true);
+      const opEl = node.querySelector(".line-op");
+      const valueEl = node.querySelector(".line-value");
 
-      node.dataset.id = habit.id;
-      node.classList.toggle("is-done-today", doneToday);
-
-      const nameEl = node.querySelector(".habit-name");
-      const checkBtn = node.querySelector(".check-btn");
-      const checkLabel = node.querySelector(".check-label");
-      const weekEl = node.querySelector(".week");
-      const currentEl = node.querySelector(".current-streak");
-      const bestEl = node.querySelector(".best-streak");
-
-      nameEl.textContent = habit.name;
-      checkBtn.setAttribute("aria-pressed", String(doneToday));
-      checkBtn.title = doneToday ? "Undo today's completion" : "Mark complete for today";
-      checkLabel.textContent = doneToday ? "Undo today's completion" : "Mark complete for today";
-      currentEl.textContent = String(current);
-      bestEl.textContent = String(best);
-
-      if (bumpId === habit.id) {
-        currentEl.classList.add("bump");
-        bestEl.classList.add("bump");
+      node.dataset.id = entry.id;
+      if (entry.op === "sub") node.classList.add("is-sub");
+      if (animateNewest && index === entries.length - 1) {
+        node.classList.add("is-newest");
       }
 
-      weekEl.replaceChildren(...buildWeekDots(habit.completions));
-      list.appendChild(node);
+      opEl.textContent = entry.op === "add" ? "+" : "−";
+      valueEl.textContent = formatNumber(entry.value);
+      tapeList.appendChild(node);
     }
+
+    const total = entries.reduce((sum, entry) => {
+      return entry.op === "add" ? sum + entry.value : sum - entry.value;
+    }, 0);
+
+    totalValue.textContent = formatNumber(total);
+    if (bumpTotal) {
+      totalValue.classList.remove("is-bump");
+      void totalValue.offsetWidth;
+      totalValue.classList.add("is-bump");
+    }
+
+    updateEntry();
+    scrollTapeToBottom();
   }
 
-  function buildWeekDots(completions) {
-    const completed = new Set(completions);
-    const fragments = [];
-
-    for (let offset = 6; offset >= 0; offset -= 1) {
-      const date = shiftDate(todayKey(), -offset);
-      const wrapper = document.createElement("div");
-      const label = document.createElement("span");
-      const dot = document.createElement("i");
-
-      wrapper.className = "day-dot";
-      if (completed.has(date)) wrapper.classList.add("is-complete");
-      if (date === todayKey()) wrapper.classList.add("is-today");
-
-      label.textContent = weekdayLetter(date);
-      wrapper.append(label, dot);
-      fragments.push(wrapper);
-    }
-
-    return fragments;
+  function updateEntry() {
+    entryValue.textContent = draft;
   }
 
-  function currentStreak(completions) {
-    if (!completions.length) return 0;
-
-    const set = new Set(completions);
-    let cursor = todayKey();
-
-    if (!set.has(cursor)) {
-      cursor = shiftDate(cursor, -1);
-      if (!set.has(cursor)) return 0;
-    }
-
-    let streak = 0;
-    while (set.has(cursor)) {
-      streak += 1;
-      cursor = shiftDate(cursor, -1);
-    }
-    return streak;
+  function scrollTapeToBottom() {
+    requestAnimationFrame(() => {
+      tapeScroll.scrollTop = tapeScroll.scrollHeight;
+    });
   }
 
-  function bestStreak(completions) {
-    if (!completions.length) return 0;
-
-    const dates = [...new Set(completions)].sort();
-    let best = 1;
-    let run = 1;
-
-    for (let i = 1; i < dates.length; i += 1) {
-      if (shiftDate(dates[i - 1], 1) === dates[i]) {
-        run += 1;
-        best = Math.max(best, run);
-      } else {
-        run = 1;
-      }
-    }
-
-    return best;
+  function digitCount(value) {
+    return value.replace(".", "").replace("-", "").length;
   }
 
-  function loadHabits() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return [];
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) return [];
+  function formatNumber(value) {
+    const fixed = Number.isInteger(value)
+      ? String(value)
+      : String(Math.round(value * 1e10) / 1e10);
 
-      return parsed
-        .filter((item) => item && typeof item.name === "string")
-        .map((item) => ({
-          id: String(item.id || crypto.randomUUID()),
-          name: item.name.trim(),
-          createdAt: item.createdAt || new Date().toISOString(),
-          completions: Array.isArray(item.completions)
-            ? item.completions.filter((value) => typeof value === "string")
-            : [],
-        }))
-        .filter((item) => item.name);
-    } catch {
-      return [];
-    }
+    const [whole, fraction] = fixed.split(".");
+    const withCommas = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    return fraction != null ? `${withCommas}.${fraction}` : withCommas;
+  }
+
+  function flashKey(key) {
+    key.classList.add("is-pressed");
+    window.setTimeout(() => key.classList.remove("is-pressed"), 120);
+  }
+
+  function flashAction(selector) {
+    const key = keypad.querySelector(selector);
+    if (key) flashKey(key);
   }
 
   function persist() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(habits));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ entries }));
   }
 
-  function todayKey(date = new Date()) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  }
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (!parsed || !Array.isArray(parsed.entries)) return;
 
-  function shiftDate(key, days) {
-    const [year, month, day] = key.split("-").map(Number);
-    const date = new Date(year, month - 1, day);
-    date.setDate(date.getDate() + days);
-    return todayKey(date);
-  }
-
-  function weekdayLetter(key) {
-    const [year, month, day] = key.split("-").map(Number);
-    return new Date(year, month - 1, day).toLocaleDateString(undefined, {
-      weekday: "narrow",
-    });
-  }
-
-  function formatLongDate(key) {
-    const [year, month, day] = key.split("-").map(Number);
-    return new Date(year, month - 1, day).toLocaleDateString(undefined, {
-      weekday: "long",
-      month: "long",
-      day: "numeric",
-    });
+      entries = parsed.entries
+        .filter(
+          (item) =>
+            item &&
+            (item.op === "add" || item.op === "sub") &&
+            typeof item.value === "number" &&
+            Number.isFinite(item.value)
+        )
+        .map((item) => ({
+          id: String(item.id || crypto.randomUUID()),
+          value: Math.abs(item.value),
+          op: item.op,
+        }));
+    } catch {
+      entries = [];
+    }
   }
 })();
