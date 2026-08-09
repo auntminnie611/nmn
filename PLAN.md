@@ -1,58 +1,53 @@
-# Habit Tracker — Plan
+# Tally — Adding Machine Plan
 
 ## Goal
-A simple, clean habit tracker that lets you add habits, mark them complete each day, and see streaks. Data persists in the browser via `localStorage`.
+A browser adding machine that posts each number to a persistent on-screen tape, so every figure you enter stays visible while a running total updates.
 
 ## Tech
 - **HTML** — structure
-- **CSS** — layout and modern styling
-- **JavaScript** — app logic and `localStorage`
+- **CSS** — layout and machine/tape styling
+- **JavaScript** — entry, tape, totals
 - No frameworks or build step
 
 ## File structure
 ```
 /
-├── index.html      # App shell and markup
+├── index.html      # App shell: tape + keypad
 ├── css/
-│   └── styles.css  # Layout, theme, components
+│   └── styles.css  # Atmosphere, machine, tape
 ├── js/
-│   └── app.js      # Habits CRUD, streaks, persistence
+│   └── app.js      # Entry logic, tape, keyboard
 ├── PLAN.md         # This plan
 └── README.md       # How to run and use
 ```
 
 ## Features (v1)
-1. **Add habit** — name any habit you want to track
-2. **Mark complete** — toggle today’s completion with one click
-3. **Streaks** — show current streak and best streak per habit
-4. **Delete habit** — remove habits you no longer need
-5. **Persist** — save everything to `localStorage` so it survives refresh
-6. **Week strip** — last 7 days of completion at a glance
+1. **Digit entry** — type with the on-screen pad or keyboard
+2. **Post to tape** — `+` / Enter adds; `−` subtracts
+3. **On-screen tape** — every posted number stays listed
+4. **Running total** — always visible at the foot of the tape
+5. **Clear entry / Clear all** — wipe the current figure or the whole tape
+6. **Decimals** — single decimal point per entry
+7. **Persist** — save the tape in `localStorage` across refresh
 
 ## Data model
 ```js
 {
-  habits: [
-    {
-      id: "uuid",
-      name: "Drink water",
-      createdAt: "2026-07-25T12:00:00.000Z",
-      completions: ["2026-07-23", "2026-07-24", "2026-07-25"] // YYYY-MM-DD
-    }
-  ]
+  entries: [
+    { id: "uuid", value: 12.5, op: "add" },   // op: "add" | "sub"
+  ],
+  draft: "0"
 }
 ```
 
-## Streak rules
-- **Current streak**: consecutive days ending today if completed today, otherwise ending yesterday
-- **Best streak**: longest consecutive run in the completion history
-
 ## UI outline
-1. Brand header + today’s date
-2. Add-habit form
-3. Habit list (interactive rows): name, week dots, streak stats, complete toggle, delete
+1. Brand header (Tally) + one short line
+2. Paper tape: posted lines + total
+3. Current entry readout
+4. Keypad (digits, operators, clear)
 
 ## Out of scope (later)
-- Accounts / sync
-- Reminders / notifications
-- Habit categories or goals beyond daily yes/no
+- Multiplication / division
+- Memory registers (M+/MR)
+- Print / export tape
+- Named sessions
