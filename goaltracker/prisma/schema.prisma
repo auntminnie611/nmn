@@ -1,0 +1,53 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Goal {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  category    String   @default("General")
+  color       String   @default("#6366f1")
+  icon        String   @default("target")
+  
+  // Schedule type: "daily" | "weekly_days" | "times_per_week" | "times_per_month" | "once"
+  scheduleType String  @default("daily")
+  
+  // For weekly_days: comma-separated day numbers 0-6 (0=Sun)
+  scheduleDays String? 
+  
+  // For times_per_week / times_per_month
+  scheduleCount Int?
+  
+  // For "once": due date
+  dueDate      DateTime?
+  
+  // Active / archived
+  isActive     Boolean  @default(true)
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  completions  Completion[]
+}
+
+model Completion {
+  id        String   @id @default(cuid())
+  goalId    String
+  goal      Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  
+  // ISO date string YYYY-MM-DD for which this completion counts
+  date      String
+  
+  // Optional note
+  note      String?
+  
+  createdAt DateTime @default(now())
+  
+  @@unique([goalId, date])
+}
