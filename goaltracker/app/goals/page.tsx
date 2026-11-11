@@ -38,9 +38,15 @@ export default function GoalsPage() {
   const [showArchived, setShowArchived] = useState(false);
 
   const fetchGoals = useCallback(async () => {
-    const res = await fetch("/api/goals");
-    setGoals(await res.json());
-    setLoading(false);
+    try {
+      const res = await fetch("/api/goals");
+      const data = await res.json();
+      setGoals(Array.isArray(data) ? data : []);
+    } catch {
+      setGoals([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {

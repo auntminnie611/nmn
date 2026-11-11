@@ -54,19 +54,25 @@ export default function HistoryPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const ms = startOfMonth(currentMonth);
-    const me = endOfMonth(currentMonth);
-    const from = format(ms, "yyyy-MM-dd");
-    const to = format(me, "yyyy-MM-dd");
+    try {
+      const ms = startOfMonth(currentMonth);
+      const me = endOfMonth(currentMonth);
+      const from = format(ms, "yyyy-MM-dd");
+      const to = format(me, "yyyy-MM-dd");
 
-    const [compRes, goalRes] = await Promise.all([
-      fetch(`/api/completions?from=${from}&to=${to}`),
-      fetch("/api/goals"),
-    ]);
-    const [comps, gs] = await Promise.all([compRes.json(), goalRes.json()]);
-    setCompletions(comps);
-    setGoals(gs);
-    setLoading(false);
+      const [compRes, goalRes] = await Promise.all([
+        fetch(`/api/completions?from=${from}&to=${to}`),
+        fetch("/api/goals"),
+      ]);
+      const [comps, gs] = await Promise.all([compRes.json(), goalRes.json()]);
+      setCompletions(Array.isArray(comps) ? comps : []);
+      setGoals(Array.isArray(gs) ? gs : []);
+    } catch {
+      setCompletions([]);
+      setGoals([]);
+    } finally {
+      setLoading(false);
+    }
   }, [currentMonth]);
 
   useEffect(() => {

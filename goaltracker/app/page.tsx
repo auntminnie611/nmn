@@ -27,10 +27,15 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   const fetchGoals = useCallback(async () => {
-    const res = await fetch("/api/goals");
-    const data = await res.json();
-    setGoals(data.filter((g: Goal) => g.isActive));
-    setLoading(false);
+    try {
+      const res = await fetch("/api/goals");
+      const data = await res.json();
+      setGoals(Array.isArray(data) ? data.filter((g: Goal) => g.isActive) : []);
+    } catch {
+      setGoals([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
