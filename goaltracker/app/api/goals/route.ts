@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireIdentity } from "../../../cursor/identity";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const identity = await requireIdentity(req);
+  if (identity instanceof Response) return identity;
+
   try {
     const goals = await prisma.goal.findMany({
       orderBy: { createdAt: "asc" },
       include: { completions: true },
     });
-    return NextResponse.json(goals);
+    return NextResponse.json(goals, {
+      headers: { "Cache-Control": "private, no-store" },
+    });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: "Failed to fetch goals" }, { status: 500 });
@@ -15,6 +21,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const identity = await requireIdentity(req);
+  if (identity instanceof Response) return identity;
+
   try {
     const body = await req.json();
     const goal = await prisma.goal.create({

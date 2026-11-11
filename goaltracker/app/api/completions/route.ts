@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireIdentity } from "../../../cursor/identity";
 
 export async function GET(req: NextRequest) {
+  const identity = await requireIdentity(req);
+  if (identity instanceof Response) return identity;
+
   try {
     const { searchParams } = new URL(req.url);
     const from = searchParams.get("from");
@@ -21,7 +25,9 @@ export async function GET(req: NextRequest) {
       orderBy: { date: "desc" },
       include: { goal: true },
     });
-    return NextResponse.json(completions);
+    return NextResponse.json(completions, {
+      headers: { "Cache-Control": "private, no-store" },
+    });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: "Failed to fetch completions" }, { status: 500 });
@@ -29,6 +35,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const identity = await requireIdentity(req);
+  if (identity instanceof Response) return identity;
+
   try {
     const body = await req.json();
     const completion = await prisma.completion.upsert({
@@ -40,7 +49,9 @@ export async function POST(req: NextRequest) {
         note: body.note ?? null,
       },
     });
-    return NextResponse.json(completion);
+    return NextResponse.json(completion, {
+      headers: { "Cache-Control": "private, no-store" },
+    });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: "Failed to create completion" }, { status: 500 });
@@ -48,6 +59,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const identity = await requireIdentity(req);
+  if (identity instanceof Response) return identity;
+
   try {
     const body = await req.json();
     await prisma.completion.deleteMany({
