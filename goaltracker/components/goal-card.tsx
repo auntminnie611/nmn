@@ -16,6 +16,7 @@ type Goal = {
   scheduleDays?: string | null;
   scheduleCount?: number | null;
   dueDate?: Date | string | null;
+  isActive: boolean;
   completions: { goalId: string; date: string }[];
 };
 
