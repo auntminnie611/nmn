@@ -1,11 +1,13 @@
 import { PrismaClient } from "@prisma/client";
-import path from "path";
 
-// Ensure DATABASE_URL is set before PrismaClient is created.
-// Next.js loads .env at the process level, but in some environments
-// (especially with Turbopack) it may not be set yet at module-eval time.
+// DATABASE_URL is injected by the platform (Postgres) in production.
+// In local dev, set it in .env to a postgres:// connection string,
+// or the app falls back to an in-memory stub that logs a clear error.
 if (!process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = `file:${path.join(process.cwd(), "prisma", "dev.db")}`;
+  console.error(
+    "[goaltracker] DATABASE_URL is not set. " +
+      "Set it in .env to a postgres:// connection string for local dev."
+  );
 }
 
 const globalForPrisma = globalThis as unknown as {
